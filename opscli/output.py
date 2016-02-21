@@ -144,13 +144,6 @@ def cli_help(items, end='\n'):
         cli_wrt("  %-20s %s%s" % (item, getattr(item, 'help_text', ''), end))
 
 
-# TODO pretty columns
-def fmt_cols(data):
-    '''Arrange strings into columns depending on terminal width and the
-    longest string.'''
-    return '    '.join(data)
-
-
 def out_table(data, title=None, indent=0):
     if not data:
         return

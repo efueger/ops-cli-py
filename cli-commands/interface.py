@@ -16,7 +16,6 @@
 from opscli.command import *
 from opscli.options import *
 from opscli.flags import *
-from opscli.context import *
 
 
 class Shutdown(Command):
@@ -47,7 +46,8 @@ class Interface(Command):
 
     def run(self, opts, flags):
         if isinstance(opts[0], TInterface):
-            context_push('interface', obj=opts[0], prompt='config-if')
+            return self.context.enter(
+                    'interface', obj=opts[0], prompt='config-if')
 
 
 register_commands((Interface,), tree='config')

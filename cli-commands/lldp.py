@@ -154,7 +154,7 @@ class Interface_lldp(Command):
     )
 
     def run(self, opts, flags):
-        intf_token = context_get().obj
+        intf_token = self.context.obj
         condition = ['name', '==', str(intf_token)]
         intf_other_map = ovsdb.get_map('Interface', 'other_config',
                                        conditions=[condition])

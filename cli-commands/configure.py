@@ -14,7 +14,6 @@
 # under the License.
 
 from opscli.command import *
-from opscli.context import *
 from opscli.options import *
 from opscli.flags import *
 from opscli.output import *
@@ -31,7 +30,7 @@ class Configure(Command):
     )
 
     def run(self, opts, flags):
-        context_push('config')
+        return self.context.enter('config')
 
 
 register_commands((Configure,))

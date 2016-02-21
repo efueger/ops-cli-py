@@ -13,12 +13,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from opscli.command import *
-from opscli.output import *
-from opscli.context import *
+from opscli import command
+from opscli import output
 
 
-class Quit(Command):
+class Quit(command.Command):
     '''Quit shell'''
     command = 'quit'
 
@@ -26,32 +25,31 @@ class Quit(Command):
         return False
 
 
-register_commands((Quit,))
-
-
-class Exit(Command):
+class Exit(command.Command):
     '''Exit current mode and down to previous mode'''
     command = 'exit'
 
     def run(self, opts, flags):
-        if not context_pop():
-            return False
+        return self.context.leave()
 
 
-class Pwc(Command):
+class Pwc(command.Command):
     '''Show current configuration context'''
     command = 'pwc'
 
     def run(self, opts, flags):
         indent = 0
-        for ctx_name in context_names()[1:]:
-            context = context_get(ctx_name)
-            cli_wrt(' ' * indent * 2)
-            cli_wrt(context.name)
+        for context in reversed(list(self.context.chain())):
+            if context.parent is None:
+                continue
+            output.cli_wrt(' ' * indent * 2)
+            output.cli_wrt(context.name)
             if context.obj is not None:
-                cli_wrt(' ' + str(context.obj))
-            cli_out()
+                output.cli_wrt(' ' + str(context.obj))
+            output.cli_out()
             indent += 1
 
 
-register_commands((Pwc,), 'global')
+command.register_commands((Exit,), 'global')
+command.register_commands((Pwc,), 'global')
+command.register_commands((Quit,))

@@ -17,7 +17,6 @@ from opscli.command import *
 from opscli.flags import *
 from opscli.tokens import *
 from opscli.options import *
-from opscli.context import *
 from opscli.output import *
 import opscli.ovsdb as ovsdb
 
@@ -47,7 +46,7 @@ class Conf_vlan(Command):
     )
 
     def run(self, opts, flags):
-        context_push('vlan', obj=opts[0], prompt='config-vlan')
+        return self.context.enter('vlan', obj=opts[0], prompt='config-vlan')
 
 
 register_commands((Conf_vlan,), tree='config')

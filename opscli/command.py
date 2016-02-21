@@ -59,6 +59,7 @@ class Command:
         self.cli = None
         self.branch = OrderedDict()
         self.is_dummy = is_dummy
+        self.context = None
         if hasattr(self, 'command'):
             self.command = tuple(self.command.split())
         else:
