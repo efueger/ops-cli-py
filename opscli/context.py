@@ -91,4 +91,8 @@ class Context(object):
         return stringhelp.Str_help((' '.join(words), cmdobj.__doc__))
 
     def get_help_subtree(self):
-        return [self.helpline(x) for x in self.cmdtree.branch.itervalues()]
+        global_tree = get_cmdtree('global')
+        items = (
+            [self.helpline(x) for x in self.cmdtree.branch.itervalues()] +
+            [self.helpline(x) for x in global_tree.branch.itervalues()])
+        return items

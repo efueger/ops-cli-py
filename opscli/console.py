@@ -6,6 +6,10 @@ from pyrepl.unix_console import UnixConsole
 from pyrepl.historical_reader import HistoricalReader
 import pyrepl.commands
 
+# TODO(bluecmd): These should go away
+from opscli import flags
+from opscli import stringhelp
+
 from opscli import options
 from opscli import output
 
@@ -78,8 +82,74 @@ class PyreplConsole(object):
     def interrupt(self, unused_line):
         raise KeyboardInterrupt
 
-    def qhelp(self, unused_line):
-        pass
+    def qhelp(self, line):
+        output.cli_wrt('\r\n')
+        items = self.qhelp_items(line)
+        output.cli_help(items, end='\r\n')
+        output.cli_wrt(self.reader.ps1)
+        output.cli_wrt(line)
+
+    def qhelp_items(self, line):
+        '''Called when ? is pressed. line is the text up to that point.
+        Returns help items to be shown, as a list of (command, helptext).'''
+        items = []
+        words = line.split()
+        if not words:
+            # On empty line: show all commands in this context.
+            return sorted(self.context.get_help_subtree())
+
+        matches = self.context.find_command(words)
+        if not matches:
+            raise Exception(CLI_ERR_NOMATCH)
+        if line[-1].isspace():
+            # Last character is a space, so whatever comes before has
+            # to match a command unambiguously if we are to continue.
+            if len(matches) != 1:
+                raise Exception(CLI_ERR_AMBIGUOUS)
+
+            cmd_complete = False
+            # TODO(bluecmd): This cuts all the way through the abstraction
+            # Let's move get_help_subtree to cmdobj and use it here
+            cmdobj = matches[0]
+            for key in cmdobj.branch:
+                items.append(self.context.helpline(cmdobj.branch[key], words))
+            if hasattr(cmdobj, 'options'):
+                opt_words = words[len(cmdobj.command):]
+                if not opt_words and flags.F_NO_OPTS_OK in cmdobj.flags:
+                    # Didn't use any options, but that's ok.
+                    cmd_complete = True
+                elif len(opt_words) == len(cmdobj.options):
+                    # Used all options, definitely a complete command.
+                    cmd_complete = True
+                elif opt_words:
+                    # Only some options were used, check if we missed
+                    # any required ones.
+                    try:
+                        opt_tokens = tokenize_options(opt_words,
+                                                      cmdobj.options)
+                        check_required_options(opt_tokens, cmdobj.options)
+                        # Didn't bomb out, so all is well.
+                        cmd_complete = True
+                    except:
+                        pass
+                items.extend(options.help_options(cmdobj, words))
+            else:
+                # Command has no options.
+                cmd_complete = True
+            if cmd_complete and hasattr(cmdobj, 'run'):
+                items.insert(0, stringhelp.Str_help(('<cr>', cmdobj.__doc__)))
+        else:
+            # Possibly incomplete match, not ending in space.
+            for cmdobj in matches:
+                if len(words) <= len(cmdobj.command):
+                    # It's part of the command
+                    # TODO(bluecmd): This cuts all the way through the abstraction
+                    # Let's move get_help_subtree to cmdobj and use it here
+                    items.append(self.context.helpline(cmdobj, words[:-1]))
+                else:
+                    # Must be an option.
+                    items.extend(options.complete_options(cmdobj, words))
+        return sorted(items)
 
     def complete(self, line):
         if not line:
