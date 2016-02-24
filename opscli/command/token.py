@@ -1,6 +1,4 @@
 """
-TODO(bluecmd): Describe how match / partial match works.
-
 TODO(bluecmd): Describe how the magic |, + and [] works.
 
 """
@@ -93,7 +91,7 @@ class LiteralType(Token):
         return self.string
 
     def match(self, word):
-        return word == self.word
+        return word == self.string
 
 
 class IPv4Type(Token):
@@ -124,10 +122,15 @@ class StringRegexType(Token):
         return True
 
 
-# To make it simpler for the programmer to think correctly, we have an alias
-# for InOrder called Options. This is because all options always start with
-# an InOrder clause.
-Options = InOrder
+def construct(operand):
+    # To make it simpler for the programmer to think correctly, we have this
+    # simple constructor function.
+    # It avoids nesting to InOrder() in eachother, really - that's about it.
+    if isinstance(operand, Condition):
+        return operand
+    else:
+        return InOrder(operand)
+
 
 # Quick access to common used types
 IPv4Address = IPv4Type()
