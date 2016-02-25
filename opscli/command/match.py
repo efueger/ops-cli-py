@@ -1,5 +1,48 @@
 """
-TODO(bluecmd): Describe how match / partial match works.
+Match trees are mainly used to provide syntax completion.
+
+A match tree is a nested ordered dictionary forming a tree
+data structure where each branch key is a string-like object.
+In opscli, these string-like objects are always token.Token
+objects.
+
+Example:
+Given the following commands:
+  show bgp neighbor
+  show ospf peers
+  show aaa
+
+The tree would internally look like:
+Tree -- show --- bgp -- neighbors - {MG}*
+              |- ospf - peers - {MG}*
+              \- aaa - {MG}*
+              
+Notice that the order is preserved from when the
+tokens were inserted.
+
+* MG stands for Match group
+
+# Match group
+A match group is a data structure associated with every leaf
+in the tree. It contains information used to derive what parts
+of the resulting match are command tokens, and what are option
+tokens.
+
+It has 3 fields:
+- primary   (in opscli; 'command')
+- secondary (in opscli; 'option')
+- value     (in opscli; carries the bound command)
+
+# Usage
+Using LiteralToken from token.py, it's easy to do command
+completition.
+
+L = token.LiteralType
+mg = MatchGroup((L('hello'), L('world')), (,), 'awesome')
+
+t.add(mg)
+
+t.match(('hel', 'wo')) => 
 """
 
 import collections
