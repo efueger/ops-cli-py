@@ -1,29 +1,34 @@
+import collections
 import pyparsing as p
 
 Segment = (
         p.QuotedString('\'', escChar='\\') |
         p.QuotedString('"', escChar='\\') |
-        p.CharsNotIn(' '))
+        p.CharsNotIn(' |'))
 
+# CommandEnd forbids trailing space
+CommandEnd = p.ZeroOrMore(Segment + p.Suppress(p.White())) + Segment
 
-class ParseResult(object):
+# CommandPiped requires '|' at end, but ' |' is also fine
+CommandPiped = p.OneOrMore(Segment + p.Suppress(p.ZeroOrMore(p.White()))) + p.Suppress(p.Literal('|'))
 
-    grammar = p.ZeroOrMore(Segment + p.Suppress(p.White())) + Segment
+# A command consists of 'Command' or 'Command | Command'
+Grammar = p.LineStart() + p.ZeroOrMore(p.Group(CommandPiped)) + p.Group(CommandEnd) + p.LineEnd()
 
-    def __init__(self, string):
-        self.result = self._tryParse(string)
-        self.success = self.result is not None
-
-    def _tryParse(self, string):
-        try:
-            return self.grammar.parseString(string)
-        except p.ParseException as e:
-            self.error = e
+ParseResult = collections.namedtuple(
+    'ParseResult', ('success', 'error', 'commands'))
 
 
 def parse(string):
     """Parse a given unicode string."""
-    return ParseResult(string)
+    error = None
+    commands = []
+    try:
+        commands = Grammar.parseString(string)
+    except p.ParseException as e:
+        error = e
+    success = error is None
+    return ParseResult(success, error, commands)
 
 
 # This enables caching of match logic inside of p
