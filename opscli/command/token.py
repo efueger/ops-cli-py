@@ -81,6 +81,17 @@ class Token(object):
         pass
 
 
+def construct(operand):
+    # To make it simpler for the programmer to think correctly, we have this
+    # simple constructor function.
+    # It avoids nesting to InOrder() in eachother, really - that's about it.
+    if isinstance(operand, Condition):
+        return operand
+    else:
+        return InOrder(operand)
+
+
+# TODO(bluecmd): Move these to a plugin driven directory
 class LiteralType(Token):
     """Matches a given literal string."""
 
@@ -120,16 +131,6 @@ class StringRegexType(Token):
 
     def match(self, word):
         return True
-
-
-def construct(operand):
-    # To make it simpler for the programmer to think correctly, we have this
-    # simple constructor function.
-    # It avoids nesting to InOrder() in eachother, really - that's about it.
-    if isinstance(operand, Condition):
-        return operand
-    else:
-        return InOrder(operand)
 
 
 # Quick access to common used types
