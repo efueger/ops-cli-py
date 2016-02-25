@@ -41,16 +41,54 @@ c.config = MyConfigContext
 We can also attatch actions by derriving ContextBoundObject:
 
 class Action(context.ContextBoundObject):
- TODO
+  def __call__(self, user):
+    # We can access the context attributes via self.context
+    print user, 'is doing stuff inside context'
+c.config.action = Action
 
-my_context = c.test.hello.world
+To call action we first need to bind the context:
+ctxt = c.config()
+This will instansiate MyConfigContext. If we had any arguments to 'new'
+we would pass them here, like: c.config(thing=1)
 
-a, b, and c could be used for contexts. 
+We can now call action:
+ctxt.action('Chuck Norris')
+=> "Chuck Norris is doing stuff inside context
 
+# Note on border actions
+A border action is an action that is also switching context.
+Example are 'configure', and 'vlan' commands.
 
-TODO(bluecmd): Talk about setting up contexts
-TODO(bluecmd): Talk about binding and calling contexts
-TODO(bluecmd): Talk about iteration and border objects
+They are registeres like this:
+c.configure = MyConfigureContext
+c.configure = MyConfigureAction
+
+This looks odd at first glance, but what the first line is doing is
+assigning the context family to the c.configure subtree.
+The second line is then bindning an action to that specific node node.
+
+If this becomes too confusing for people we might end up changing it.
+
+# Iterating over Context trees
+
+Iterating over an unbound context tree gives you the currently
+registered branches.
+
+Example:
+c.configure = Foo
+c.reload = Bar
+print list(c) => ['configure', 'reload']
+
+Iterating over a bound context tree however will give you all
+bound actions inside the same context family (i.e. all allowed
+actions)
+
+Example:
+c.configure = Foo
+c.configure.hostname = Bar
+c.reload = Xyz
+print list(c()) => [(['configure'], Foo), (['reload'], Xyz)]
+print list(c.configure()) => [(['hostname'], Bar)]
 """
 from collections import defaultdict
 
