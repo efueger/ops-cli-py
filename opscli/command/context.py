@@ -7,7 +7,17 @@ from collections import defaultdict
 
 
 class Context(object):
-    pass
+    """Context is a state in the command tree.
+
+    Contextes by default adopt all attributes of their parents.
+    """
+    def __init__(self, parent, *args, **kwargs):
+        for key, value in parent.__dict__.iteritems():
+            setattr(self, key, value)
+        self.new(*args, **kwargs)
+
+    def new(self, *args, **kwargs):
+        pass
 
 
 class ContextBoundObject(object):
@@ -65,7 +75,7 @@ class ContextTree(object):
                 else self._parent._get_context())
 
     def __call__(self, *args, **kwargs):
-        context = self._get_context()(*args, **kwargs)
+        context = self._get_context()(self.context, *args, **kwargs)
         return BoundContextTree(self, context)
 
     def __iter__(self):

@@ -25,7 +25,7 @@ class VlanToken(token.Token):
 
 
 class VlanContext(context.Context):
-    def __init__(self, vlan):
+    def new(self, vlan):
         self.vlan = vlan
 
 class VlanConfigure(command.Utility):

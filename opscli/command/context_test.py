@@ -11,7 +11,7 @@ def testSimpleContext():
 def testSpecialContext():
 
     class FakeContext(context.Context):
-        def __init__(self, thing):
+        def new(self, thing):
             self.thing = thing
 
     class FakeObject(context.ContextBoundObject):
@@ -36,7 +36,7 @@ def testSpecialContext():
 
 def testNestedContexts():
     class FakeContext(context.Context):
-        def __init__(self, thing):
+        def new(self, thing):
             self.thing = thing
 
     class FakeObject(context.ContextBoundObject):
