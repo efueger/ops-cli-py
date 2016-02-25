@@ -1,4 +1,53 @@
 """
+Contexts hold state and knows about valid actions to take inside the context.
+
+A context can be thought of as a box with some optional attributes attatched
+to it. For example you might want to have a command 'vlan 10' to enter a
+state where every command would affect VLAN 10. Creating a VLAN context for
+this with a VLAN ID attribute is the right way to go.
+
+Contexts have only one method that you usually need to care about: new.
+New is used to attach attributes when binding a context. Override it
+to assign attributes for later use.
+
+# Context trees
+A context tree contains a reference to the active context, but also every
+valid action that can be taken inside that context.
+
+There are two types of contexts trees:
+Unbound (ContextTree) and Bound (BoundContextTree)
+
+Limitations:
+- When a ContextTree is bound it cannot be unbound again.
+- You can only perform actions on bound context tree.
+- A bound context tree does not allow action registration or context
+  family switching (see below)
+
+# Creating and bindning a Context tree
+
+c = context.ContextTree(context.Context)
+
+Here we created 'c', a context tree that by default uses
+the context.Context context type for the root context that
+everything inherits from.
+
+If we want to change a context to another type of context
+we can do so by assigning it a Context subclass type:
+
+class MyConfigContext(context.Context):
+  pass
+c.config = MyConfigContext
+
+We can also attatch actions by derriving ContextBoundObject:
+
+class Action(context.ContextBoundObject):
+ TODO
+
+my_context = c.test.hello.world
+
+a, b, and c could be used for contexts. 
+
+
 TODO(bluecmd): Talk about setting up contexts
 TODO(bluecmd): Talk about binding and calling contexts
 TODO(bluecmd): Talk about iteration and border objects
@@ -17,7 +66,6 @@ class Context(object):
     def __init__(self, parent, *args, **kwargs):
         for key, value in parent.__dict__.iteritems():
             setattr(self, key, value)
-        self.parent = parent
         self.new(*args, **kwargs)
 
     def __str__(self):
@@ -25,9 +73,6 @@ class Context(object):
 
     def new(self, *args, **kwargs):
         pass
-
-    def exit(self):
-        return self.parent
 
 
 class ContextBoundObject(object):
