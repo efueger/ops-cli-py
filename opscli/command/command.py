@@ -1,3 +1,78 @@
+"""
+A command class represent an action that can be taken in the CLI.
+
+There are two general types of commands:
+- Utility
+- Feature
+
+Utility commands do something when you type the command.
+Example: reload, clear, show ip route, configure, exit
+
+Feature commands are things that can be modified, turned on, or turned off.
+Example: hostname, ip routing, description
+
+A basic utility command looks like this:
+
+class MyCommand(command.Utility):
+    '''Prints a message in the console'''
+    
+    def command(self):
+        return 'Executing my command'
+
+While a basic feature looks like:
+
+class MyFeature(command.Feature):
+    '''Turns the awesome feature on.'''
+    
+    def activate(self):
+        print 'Executing FakeCommand'
+
+Commands also have two optional fields:
+- options
+- prefixes (TODO)
+
+# Options
+Options takes a set of objects that will be compared to
+the user given command line to make sure it validates and
+to provide completition services. It's important to note
+that this field needs iterate combinatorially - so
+looping over it will produce all legal combinations.
+
+For more info: Usually this field is set to token.InOrder (see token.py)
+
+# Prefixes and Routing
+Every command has a route() function that uses so called modifiers to
+route the command to the correct function.
+
+Example: Putting 'no' in prefixes will register the same command
+twice - once without prefix, and once prefixed with 'no'.
+
+This 'no' prefix can then be interpreted as a modifier. Usually
+'no' results in setting 'is_negated' to True. This causes route()
+to return deactivate() instead of the normal activate() on Feature
+commands.
+
+# Calling a command
+When you have a command object you call it by first binding the modifiers
+to it. This causes the routing to establish which function to call.
+You then use the result of bind as a function call with the options
+the function is expecting.
+
+Example:
+Assume we have Utility command with the following command function:
+class MyCommand(command.Utility):
+  def command(self, password):
+    pass
+
+We would call it like this:
+MyCommand().bind(is_negated=False)("secret_password")
+The reason for this syntax is that you can save the bound function
+and call it later when the options are available. This is useful
+for command parsing.
+
+If you want to, you can also use a shortcut notation:
+MyCommand()("secret_password", is_negated=False)
+"""
 import abc
 import collections
 import context
