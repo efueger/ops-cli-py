@@ -33,6 +33,12 @@ It has 3 fields:
 - secondary (in opscli; 'option')
 - value     (in opscli; carries the bound command)
 
+# Matching
+
+Standard matching is that all tokens must match. If prefix
+matching is enabled we only require matching up until the words
+run out.
+
 # Usage
 Using LiteralToken from token.py, it's easy to do command
 completition.
@@ -40,11 +46,12 @@ completition.
 L = token.LiteralType
 mg = MatchGroup((L('hello'), L('world')), (,), 'awesome')
 
+t = Tree()
 t.add(mg)
-
-t.match(('hel', 'wo')) => 
+t.match(('hel', 'wo')) => [mg]
+t.match(('hel',)) => []
+t.match(('hel',), prefix=True) => [mg]
 """
-
 import collections
 
 
