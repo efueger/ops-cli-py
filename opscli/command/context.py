@@ -1,3 +1,8 @@
+"""
+TODO(bluecmd): Talk about setting up contexts
+TODO(bluecmd): Talk about binding and calling contexts
+TODO(bluecmd): Talk about iteration and border objects
+"""
 from collections import defaultdict
 
 
@@ -99,17 +104,17 @@ class BoundContextTree(object):
         if self._tree._bind:
             # If we are a border object, we belong to the parent context
             if not self._tree._is_border_object():
-                yield []
+                yield ([], self.New())
         for branch in self._tree:
             child = getattr(self, branch)
             # Check that we're not trying to cross a context boundry
             if self._tree._is_border_branch(branch):
                 # Allow border objects
                 if child._tree._bind:
-                    yield [branch]
+                    yield ([branch], child.New())
                 continue
-            for combination in child:
-                yield [branch] + combination
+            for combination, obj in child:
+                yield ([branch] + combination, obj)
 
 
     def New(self):

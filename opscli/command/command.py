@@ -1,25 +1,34 @@
 import abc
 import context
 
+
 class Command(context.ContextBoundObject):
 
     __metaclass__ = abc.ABCMeta
 
+    # Default to no arguments required
+    options = (list(), )
+
     class Bound(object):
 
-        def __init__(self, command, options, is_negated=False):
-            self.command = command
-            self.options = options
-            self.is_negated = is_negated
+        def __init__(self, command, **kwargs):
+            self.func = command.route(**kwargs)
+            self.argc = self.func.func_code.co_argcount
 
-        def __call__(self):
-            return self.command.execute(self.options, self.is_negated)
+        def __call__(self, *options):
+            return self.func(*options)
+
+        def __str__(self):
+            return '%s.%s' % (self.func.im_class.__name__, self.func.__name__)
+
+    def bind(self, **kwargs):
+        return Command.Bound(self, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        return Command.Bound(self, args, **kwargs)()
+        return self.bind(**kwargs)(*args)
 
     @abc.abstractmethod
-    def execute(self, options, is_negated):
+    def route(self, **kwargs):
         pass
 
 
@@ -31,11 +40,11 @@ class Feature(Command):
     since it can be activated ("debug foo") and deactivated ("no debug foo").
     """
 
-    def execute(self, options, is_negated):
+    def route(self, is_negated):
         if is_negated:
-            self.deactivate(*options)
+            return self.deactivate
         else:
-            self.activate(*options)
+            return self.activate
 
     def isActivated(self):
         pass
@@ -51,8 +60,8 @@ class Feature(Command):
 class Utility(Command):
     """Utility commands are for simple commands that only produce output."""
 
-    def execute(self, options, unused_is_negated):
-        return self.command(*options)
+    def route(self, **kwargs):
+        return self.command
 
     def command(self):
         pass

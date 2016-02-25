@@ -72,6 +72,7 @@ def testNestedContexts():
     root.some_context.another_context = AnotherFakeContext
     root.some_context.another_context = FakeObject
     root.some_context.another_context.fake.object = AnotherFakeObject
+    root.some_context.another_context.secondary.object = AnotherFakeObject
 
     print list(root) # == ['some_context']
 
