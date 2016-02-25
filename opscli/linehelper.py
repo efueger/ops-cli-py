@@ -1,4 +1,27 @@
+import collections
+
+from opscli.command import match
+from opscli.command import parse
+from opscli.command import token
+
+
+# When modifiers such as 'no' have been parsed they are attached to the command
+# using this structure
+CommandStruct = collections.namedtuple(
+        'CommandStruct', ('modifiers', 'command'))
+
+
+class Error(Exception):
+    """Base error class for this module."""
+    pass
+
+class CommandNotFoundError(Exception):
+    """Raised if the user tries to execute a command that doesn't exist."""
+    pass
+
+
 class LineHelper(object):
+    """Logic glue between CLI logic and Console implementation."""
 
     def qhelp(self, line):
         pass
@@ -8,6 +31,50 @@ class LineHelper(object):
 
 
 class ContextLineHelper(LineHelper):
+
+    def __init__(self, context, global_context):
+        self.global_context = global_context
+        self.set_context(context)
+
+    def set_context(self, context):
+        commands = list(context) + list(self.global_context)
+        tree = match.Tree()
+        for words, obj in commands:
+            # TODO(bluecmd): Register legal modifiers for this command
+            modifiers = {'is_negated': False}
+            struct = CommandStruct(modifiers, obj)
+            command_tokens = [token.LiteralType(x) for x in words]
+            for option in obj.options:
+                tree.add(match.MatchGroup(command_tokens, option, struct))
+        self.tree = tree
+        self.context = context
+
+    @property
+    def prompt(self):
+        # TODO(bluecmd): Make nice prompt
+        return str(self.context)
+
+    def find_command(self, words):
+        # Step 1) Parse command
+        parse_result = parse.parse(words)
+        command = parse_result.commands[0]
+
+        # Step 2) Match and bind
+        match_result = next(self.tree.match(command), None)
+        if match_result is None:
+            raise CommandNotFoundError(words)
+        modifiers = match_result.value.modifiers
+        bound_command = match_result.value.command.bind(**modifiers)
+        # Remove options that the receiving function will not handle
+        option_tokens = match_result.secondary[:bound_command.argc]
+
+        # Step 3) Transform options
+        # Remove primary (command) arguments
+        option_words = command[len(match_result.primary):]
+        options = [token(word) for word, token in zip(option_words, option_tokens)]
+
+        return bound_command, options
+
 
     def qhelp_items(self, line):
         '''Called when ? is pressed. line is the text up to that point.

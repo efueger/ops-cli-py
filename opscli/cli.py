@@ -18,10 +18,23 @@ import os
 import logging
 
 from opscli import console
+from opscli import linehelper
 from opscli.command import context
 
 
+# Define some globally knwon sentinels
+# These are returned by the commands to let the shell react appropriately.
+
+# Causes the program to exit
+ExitMarker = object()
+
+# Used to travel backwards to the previous context
+ExitContextMarker = object()
+
+
 class OpsContext(context.Context):
+    # TODO(bluecmd): Remove
+    prompt = '(root) >'
     def new(self, ovsdb):
         self.ovsdb = ovsdb
 
@@ -32,7 +45,6 @@ class Opscli(object):
     '''
     def __init__(self, ovsdb, module_paths=None, motd='OpenSwitch shell'):
         # Initialize the OVSDB helper.
-        self.motd = 'OpenSwitch shell'
         prompt_base = 'Openswitch'
 
         # TODO shell hangs before prompt if this is down
@@ -44,82 +56,65 @@ class Opscli(object):
             logging.exception('Failed to get hostname from OVSDB')
 
         # Initialize command tree.
+        self.root = context.ContextTree(OpsContext)
+        self.global_root = context.ContextTree(OpsContext)
+
         for path in module_paths:
             if not os.path.isdir(path):
                 logging.warn('Ignoring invalid module path "%s".', path)
                 continue
             self.load_commands(path)
 
-        self.root = context.ContextTree(OvsdbContext)
-        self.console = console.PyreplConsole(prompt_base, self.root)
+        self.context = self.root(ovsdb)
+        self.global_context = self.global_root(ovsdb)
+        self.context_stack = []
+
+        # This is the object that advises the console of what commands are
+        # possible.
+        self.linehelper = linehelper.ContextLineHelper(
+                self.context, self.global_context)
+
+        self.console = console.PyreplConsole(prompt_base, motd, self.linehelper)
 
     def load_commands(self, path):
         sys.path.insert(0, path)
         for filename in os.listdir(path):
-            if filename[-3:] != '.py':
+            if not filename.endswith('.py') or filename.endswith('_test.py'):
                 continue
-            # Strip '.py'.
-            __import__(filename[:-3])
+            module = __import__(filename[:-3])
+            if hasattr(module, 'register'):
+                module.register(self.root, self.global_root)
 
     def start(self):
-        cli_out(self.motd)
         for line in self.console.loop():
-            if not self.process_line(line):
-                # Received quit, ctrl-d etc.
+            ret = self.process_line(line)
+            if ret is None:
+                continue
+            elif ret == ExitMarker:
                 break
+            self.console.output(ret)
             # TODO catch all exceptions, log traceback, print error msg
 
     def process_line(self, line):
-        words = line.split()
-        dbg(words)
-        if words:
-            return self.run_command(words)
-        return True
+        command, options = self.linehelper.find_command(line)
+        try:
+            ret = command(*options)
+        except TypeError as e:
+            logging.exception(
+                    'Tried calling %s but got "%s"', command, str(e))
+            # TODO(bluecmd): Raise exception?
+            return
 
-    def run_command(self, words):
-        if words[0] == 'help':
-            self.console.show_help(words[1:])
-            return True
-
-        flags = []
-        # Negated commands are in the tree without the leading 'no'.
-        if words[0] == 'no':
-            words.pop(0)
-            flags.append(F_NO)
-
-        matches = self.context.find_command(words)
-        if len(matches) == 0 or len(matches) > 1:
-            # Either nothing matched, or more than one command matched.
-            raise Exception(CLI_ERR_NOCOMMAND)
-        cmdobj = matches.pop()
-
-        if not hasattr(cmdobj, 'run'):
-            # Dummy command node, such as 'show'.
-            raise Exception(CLI_ERR_INCOMPLETE)
-
-        tokens = []
-        if len(cmdobj.command) != len(words):
-            # Some of the words aren't part of the command. The rest must
-            # be options.
-            opt_words = words[len(cmdobj.command):]
-            tokens = tokenize_options(opt_words, cmdobj.options)
-
-        check_required_options(tokens, cmdobj.options)
-
-        for flag in flags:
-            if flag not in cmdobj.flags:
-                # Something was flagged, but the command doesn't allow it.
-                raise Exception(CLI_ERR_NOCOMMAND)
-
-        # Run command.
-        cmdobj.context = self.context
-        ret = cmdobj.run(tokens, flags)
-        if isinstance(ret, context.Context):
-            # Command switched context
-            self.context = ret
-            self.console.set_context(self.context)
-
-        # Most commands just return None, which is fine.
-        return ret is not False
-
-
+        # Step 5) Handle result
+        # Does the command want us to go up the context stack?
+        if ret.value == ExitContextMarker:
+            if self.context_stack:
+                self.context = self.context_stack.pop()
+                self.linehelper.set_context(self.context)
+            return
+        # Did we switch context to a new one?
+        elif self.context != ret.context:
+            self.context_stack.append(self.context)
+            self.context = ret.context
+            self.linehelper.set_context(self.context)
+        return ret.value

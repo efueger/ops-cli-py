@@ -20,8 +20,8 @@ class ExtendedHistoricalReader(HistoricalReader):
         self.last_event = None
 
     def fix_syntax_table(self):
-        '''The default pyrepl syntax table only considers a-z as word
-        boundaries, which affects keyboard navigation. Add a few more.'''
+        """The default pyrepl syntax table only considers a-z as word
+        boundaries, which affects keyboard navigation. Add a few more."""
         extra = '0123456789_-'
         for c in extra:
             self.syntax_table[unichr(ord(c))] = 1
@@ -32,9 +32,9 @@ class ExtendedHistoricalReader(HistoricalReader):
         super(ExtendedHistoricalReader, self).after_command(cmd)
 
     def error(self, msg):
-        '''This gets messages from pyrepl's edit commands, nothing you
+        """This gets messages from pyrepl's edit commands, nothing you
         want to see displayed. However they're the sort of thing that
-        cause readline to send a beep.'''
+        cause readline to send a beep."""
         self.console.beep()
 
 
@@ -56,10 +56,10 @@ class HistoryFile(object):
 
 
 class PyreplConsole(object):
-    '''
+    """
     This class extends pyrepl's Reader to provide command modules.
-    '''
-    def __init__(self, prompt, helper):
+    """
+    def __init__(self, prompt, motd, helper):
         self.reader = ExtendedHistoricalReader(UnixConsole())
         self.reader.bind(r'?', 'qhelp')
         self.reader.bind(r'\t', 'complete')
@@ -68,6 +68,8 @@ class PyreplConsole(object):
         self.bind('qhelp', self.qhelp)
         self.prompt_base = prompt
         self.helper = helper
+
+        print motd
 
         super(PyreplConsole, self).__init__()
 
@@ -87,8 +89,8 @@ class PyreplConsole(object):
         self.print_inline(self.fmt_cols(items))
 
     def fmt_cols(self, data):
-        '''Arrange strings into columns depending on terminal width and the
-        longest string.'''
+        """Arrange strings into columns depending on terminal width and the
+        longest string."""
         return '    '.join(data)
 
     def bind(self, action, function):
@@ -104,19 +106,25 @@ class PyreplConsole(object):
                 try:
                     self.reader.ps1 = (
                             self.prompt_base + self.helper.prompt)
-                    yield self.reader.readline()
+                    read = self.reader.readline().strip()
+                    if read:
+                        yield read
                 except EOFError:
                     # ctrl-d quits the shell.
                     break
                 except KeyboardInterrupt:
                     # ctrl-c throws away the current line and prompts again.
-                    cli_out('^C')
+                    print '^C'
 
     def print_inline(self, text):
-        '''Write text on the next line, and reproduce the prompt and entered
-        text without submitting it.'''
+        """Write text on the next line, and reproduce the prompt and entered
+        text without submitting it."""
         print '\r\n'
         print text.replace('\n', '\r\n')
         print '\r\n'
         print self.reader.ps1
         print ''.join(self.reader.buffer)
+
+    def output(self, value):
+        """Called when there is something to output returned by a command."""
+        print value

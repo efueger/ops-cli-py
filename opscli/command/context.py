@@ -11,13 +11,23 @@ class Context(object):
 
     Contextes by default adopt all attributes of their parents.
     """
+
+    prompt = ''
+
     def __init__(self, parent, *args, **kwargs):
         for key, value in parent.__dict__.iteritems():
             setattr(self, key, value)
+        self.parent = parent
         self.new(*args, **kwargs)
+
+    def __str__(self):
+        return self.prompt
 
     def new(self, *args, **kwargs):
         pass
+
+    def exit(self):
+        return self.parent
 
 
 class ContextBoundObject(object):
@@ -75,6 +85,7 @@ class ContextTree(object):
                 else self._parent._get_context())
 
     def __call__(self, *args, **kwargs):
+        """Bind a context to allow command execution."""
         context = self._get_context()(self.context, *args, **kwargs)
         return BoundContextTree(self, context)
 
@@ -108,6 +119,8 @@ class BoundContextTree(object):
     def __call__(self, *args, **kwargs):
         return self._tree(*args, **kwargs)
 
+    def __str__(self):
+        return str(self._context)
 
     def __iter__(self):
         """Bound context iterates over the bound objects within the context."""
@@ -126,9 +139,8 @@ class BoundContextTree(object):
             for combination, obj in child:
                 yield ([branch] + combination, obj)
 
-
     def New(self):
-        return self._tree._bind(self._context)
+        return self._tree._bind(self)
 
     def Call(self, *args, **kwargs):
         return self.New()(*args, **kwargs)
