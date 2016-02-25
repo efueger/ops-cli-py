@@ -1,3 +1,34 @@
+"""
+Network-OS style command parsing.
+
+This module takes a string of a command line and upon successful
+parsing returns a list of commands, each split up by the different
+command words.
+
+Grammar:
+  Words can be within quotes (' and "), at which point they
+  are allowed to contain any reasonable character. Backslash (\)
+  is the escape character.
+  
+  A command consists of at least one whitespace separated word(s).
+  
+  A command line consists of at least one command. If multiple
+  commands they are to be seperated with '|'.
+
+Example:
+  exit
+  show running-config
+  show running-config | inc hostname
+  motd "My Cool Switch!"
+  
+Usage:
+  import parse
+  result = parse.parse("show running-config")
+  if result.success:
+    print result.commands # Will print: [["show", "running-config"]]
+  else:
+    print result.error
+"""
 import collections
 import pyparsing as p
 
