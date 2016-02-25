@@ -1,4 +1,38 @@
 import match
+import token
+
+L = token.LiteralType
+
+groups = [
+       ]
+
+tree = match.Tree()
+tree.add(match.MatchGroup(
+    [L('show'), L('bgp'), L('neighbor')],
+    [L('advertised-routes')],
+    'bgp-value'))
+tree.add(match.MatchGroup(
+    [L('show'), L('ospf'), L('neighbor')],
+    [L('advertised-routes')],
+    'ospf-value'))
+tree.add(match.MatchGroup([L('show'), L('aaa')], [], 'aaa-value'))
+
+
+def dump(tree):
+    for word, branch in tree.iteritems():
+        if not branch:
+            yield [str(word)]
+        else:
+            for subwords in dump(branch):
+                yield [str(word)] + subwords
+
+# Validate preserved order
+expected = [
+        ['show', 'bgp', 'neighbor', 'advertised-routes'],
+        ['show', 'ospf', 'neighbor', 'advertised-routes'],
+        ['show', 'aaa']]
+
+print expected == list(dump(tree))
 
 #print grammar.match('test', 'foo') # == True
 #print grammar.match('test', 'foo', 'bar') # == False

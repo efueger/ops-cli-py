@@ -8,18 +8,37 @@ import collections
 MatchGroup = collections.namedtuple(
     'MatchGroup', ('primary', 'secondary', 'value'))
 
-MatchResult = collections.namedtuple(
-    'MatchResult', ('modifiers', 'primary', 'secondary', 'value'))
+
+class SubTree(collections.OrderedDict):
+
+    def __init__(self):
+        super(SubTree, self).__init__(self)
+        self.group = None
+
+    def match(self, words):
+        if not words:
+            if self.group:
+                yield self.group
+            return
+
+        word = words[0]
+        for token, branch in self.iteritems():
+            if token != word:
+                continue
+            for match in branch.match(words[1:]):
+                yield match
 
 
-def match(command, groups):
-    # TODO(bluecmd): just placeholder dummy logic for now
-    modifiers = {'is_negated': False}
-    if command[0] == 'no':
-        modifiers['is_negated'] = True
-        command = command[1:]
-    # TODO, look at first character for now
-    options = command[1:]
-    for mg in groups:
-        if mg.primary[0][0] == command[0][0]:
-            yield MatchResult(modifiers, command, options, mg.value)
+class Tree(SubTree):
+
+    def __init__(self):
+        super(Tree, self).__init__()
+
+    def add(self, group):
+        combined = list(group.primary + group.secondary)
+        tree = self
+        for token in combined:
+            tree = tree.setdefault(token, SubTree())
+        # Should be no duplicates
+        assert tree.group is None
+        tree.group = group

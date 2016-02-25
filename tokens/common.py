@@ -1,19 +1,6 @@
 from opscli.command.token import Token
 
 
-class LiteralType(Token):
-    """Matches a given literal string."""
-
-    def __init__(self, string):
-        self.string = string
-
-    def __str__(self):
-        return self.string
-
-    def match(self, word):
-        return word == self.string
-
-
 class IPv4Type(Token):
     """Matches any IPv4 address."""
 

@@ -3,18 +3,22 @@ import token
 
 class Any(token.Token):
     def match(self, word):
-        print word
         return True
+    def transform(self, word):
+        return word
+
 
 class StartsWithF(token.Token):
     def match(self, word):
-        print word
         return word[0] == 'f'
+    def transform(self, word):
+        return 'foobar'
+
 
 grammar = token.construct(Any() + StartsWithF())
 
-#print str(grammar) # == Any StartsWithF
-#print list(grammar) # == [[Any, StratsWithF]]
+print str(grammar) # == Any StartsWithF
+print list(grammar) # == [[Any, StratsWithF]]
 
 grammar = token.construct(Any() + StartsWithF() + [ Any() + [ StartsWithF() ] ])
 

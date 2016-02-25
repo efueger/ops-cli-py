@@ -86,7 +86,14 @@ class InOrder(Condition):
 
 
 class Token(object):
-    """Abstract token base class."""
+    """Abstract token base class.
+
+    Tokens are optimistically and lazy matched. If the given word *so far*
+    matches the word, then that's a match.
+
+    Final validation is done in the transform() function before returning the
+    structured value.
+    """
 
     __metaclass__ = abc.ABCMeta
 
@@ -106,9 +113,39 @@ class Token(object):
     def __iter__(self):
         yield [self]
 
+    def __call__(self, word):
+        return self.transform(word)
+
+    def __ne__(self, word):
+        return not self.__eq__(word)
+
+    def __eq__(self, word):
+        return self.match(word)
+
     @abc.abstractmethod
     def match(self, word):
         pass
+
+    @abc.abstractmethod
+    def transform(self, word):
+        """Parse the word to structured data."""
+        pass
+
+
+class LiteralType(Token):
+    """Matches a given literal string."""
+
+    def __init__(self, string):
+        self.string = string
+
+    def __str__(self):
+        return self.string
+
+    def transform(self):
+        return self.string
+
+    def match(self, word):
+        return self.string.upper().startswith(word.upper())
 
 
 def construct(operand):

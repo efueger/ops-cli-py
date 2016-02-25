@@ -44,8 +44,8 @@ root.vlan.shutdown = Shutdown
 root.vlan.description = Description
 
 # Test it
-context = root().vlan.Call(1)
+context = root().vlan.Call(1).context
 context.shutdown.Call(is_negated=True)
-context.description.Call('Hello')
+context.description.Call('Hello', is_negated=False)
 context.description.Call(is_negated=True)
-context.shutdown.Call()
+context.shutdown.Call(is_negated=False)
