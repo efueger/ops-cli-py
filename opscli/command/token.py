@@ -39,6 +39,11 @@ class OneOf(Condition):
     def __str__(self):
         return ' | '.join(str(x) for x in self.operands)
 
+    def __iter__(self):
+        for operand in self.operands:
+            for combination in operand:
+                yield combination
+
 
 class Optional(Condition):
     """Optional token/condition defined by [ X ]."""
@@ -49,6 +54,11 @@ class Optional(Condition):
     def __str__(self):
         return '[ ' + str(self.operands[0]) + ' ]'
 
+    def __iter__(self):
+        yield []
+        for combination in self.operands[0]:
+            yield combination
+
 
 # This is logical AND
 class InOrder(Condition):
@@ -56,6 +66,23 @@ class InOrder(Condition):
 
     def __str__(self):
         return ' '.join(str(x) for x in self.operands)
+
+    def __iter__(self):
+        for combination in self._combinations():
+            yield combination
+
+    def __add__(self, other):
+        return InOrder(*list(self.operands) + [other])
+
+    def _combinations(self, level=0):
+        if level == len(self.operands):
+            yield []
+            return
+
+        primary = self.operands[level]
+        for primary_combination in primary:
+            for combination in self._combinations(level + 1):
+                yield primary_combination + combination
 
 
 class Token(object):
@@ -76,6 +103,9 @@ class Token(object):
         assert isinstance(other, Token) or isinstance(other, Condition) or isinstance(other, list)
         return InOrder(self, other)
 
+    def __iter__(self):
+        yield [self]
+
     @abc.abstractmethod
     def match(self, word):
         pass
@@ -89,51 +119,3 @@ def construct(operand):
         return operand
     else:
         return InOrder(operand)
-
-
-# TODO(bluecmd): Move these to a plugin driven directory
-class LiteralType(Token):
-    """Matches a given literal string."""
-
-    def __init__(self, string):
-        self.string = string
-
-    def __str__(self):
-        return self.string
-
-    def match(self, word):
-        return word == self.string
-
-
-class IPv4Type(Token):
-    """Matches any IPv4 address."""
-
-    def match(self, word):
-        return True
-
-
-class IPv6Type(Token):
-    """Matches any IPv6 address."""
-
-    def match(self, word):
-        return True
-
-
-class RegexType(Token):
-    """Matches any valid Regexp syntax."""
-
-    def match(self, word):
-        return True
-
-
-class StringRegexType(Token):
-    """Matches strings that match against given rexep."""
-
-    def match(self, word):
-        return True
-
-
-# Quick access to common used types
-IPv4Address = IPv4Type()
-IPv6Address = IPv6Type()
-Regex = RegexType()

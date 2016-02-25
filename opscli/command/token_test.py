@@ -13,19 +13,10 @@ class StartsWithF(token.Token):
 
 grammar = token.construct(Any() + StartsWithF())
 
-print str(grammar) # == Any StartsWithF
+#print str(grammar) # == Any StartsWithF
+#print list(grammar) # == [[Any, StratsWithF]]
 
+grammar = token.construct(Any() + StartsWithF() + [ Any() + [ StartsWithF() ] ])
 
-L = token.LiteralType
-
-grammar = token.construct(
-        [ token.IPv4Address | token.IPv6Address ] +
-        [
-            L('advertised-routes') |
-            L('paths') + [ token.Regex ] |
-            L('policy') + [ L('detail') ] |
-            L('received') + L('prefix-filter') |
-            L('routes')
-        ])
-
-print str(grammar) # ==  IPv4Type | IPv6Type ] [ advertised-routes | paths | [ RegexType ] | policy [ detail ] | received prefix-filter | routes ]
+print str(grammar) # == Any StartsWithF [ Any [ StartsWithF ] ]
+print list(grammar) # == [[Any, StartsWithF], [Any, StartsWithF, Any], [Any, StartsWithF, Any, StartsWithF ]]
