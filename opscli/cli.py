@@ -96,7 +96,8 @@ class Opscli(object):
             # TODO catch all exceptions, log traceback, print error msg
 
     def process_line(self, line):
-        command, options = self.linehelper.find_command(line)
+        # TODO(bluecmd): When we implement pipe support this needs to change
+        command, options = next(self.linehelper.resolve_commands(line))
         try:
             ret = command(*options)
         except TypeError as e:
@@ -115,6 +116,7 @@ class Opscli(object):
         # Did we switch context to a new one?
         elif self.context != ret.context:
             self.context_stack.append(self.context)
+            logging.info('Switching context to %s', context)
             self.context = ret.context
             self.linehelper.set_context(self.context)
         return ret.value

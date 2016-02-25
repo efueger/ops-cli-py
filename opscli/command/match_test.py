@@ -34,6 +34,9 @@ expected = [
 
 print expected == list(dump(tree))
 
+print len(list(tree.match(('show', 'aaa')))) == 1
+print len(list(tree.match(('show', ), prefix=True))) == 3
+
 #print grammar.match('test', 'foo') # == True
 #print grammar.match('test', 'foo', 'bar') # == False
 

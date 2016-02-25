@@ -15,17 +15,27 @@ class SubTree(collections.OrderedDict):
         super(SubTree, self).__init__(self)
         self.group = None
 
-    def match(self, words):
+    def match(self, words, prefix=False):
+        """Returns match groups that match the given words.
+
+        @args prefix If true, only require that words is a subset.
+        @yields MatchGroup
+        """
         if not words:
             if self.group:
                 yield self.group
+            if prefix:
+                # Grab all available commands on the subtrees
+                for branch in self.itervalues():
+                    for match in branch.match([], prefix=True):
+                        yield match
             return
 
         word = words[0]
         for token, branch in self.iteritems():
             if token != word:
                 continue
-            for match in branch.match(words[1:]):
+            for match in branch.match(words[1:], prefix):
                 yield match
 
 

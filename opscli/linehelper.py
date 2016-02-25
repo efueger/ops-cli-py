@@ -15,8 +15,14 @@ class Error(Exception):
     """Base error class for this module."""
     pass
 
-class CommandNotFoundError(Exception):
-    """Raised if the user tries to execute a command that doesn't exist."""
+
+class CommandNotFoundError(Error):
+    """The user tried to execute a command that doesn't exist."""
+    pass
+
+
+class CommandParsingError(Error):
+    """The command line couldn't be parsed."""
     pass
 
 
@@ -26,7 +32,7 @@ class LineHelper(object):
     def qhelp(self, line):
         pass
 
-    def complete(self, line, show_all):
+    def complete(self, line):
         pass
 
 
@@ -54,151 +60,91 @@ class ContextLineHelper(LineHelper):
         # TODO(bluecmd): Make nice prompt
         return str(self.context)
 
-    def find_command(self, words):
+    def resolve_commands(self, line):
         # Step 1) Parse command
-        parse_result = parse.parse(words)
-        command = parse_result.commands[0]
+        parse_result = parse.parse(line)
+        if not parse_result.success:
+            raise CommandParsingError(parse_result.error)
 
-        # Step 2) Match and bind
-        match_result = next(self.tree.match(command), None)
-        if match_result is None:
-            raise CommandNotFoundError(words)
-        modifiers = match_result.value.modifiers
-        bound_command = match_result.value.command.bind(**modifiers)
-        # Remove options that the receiving function will not handle
-        option_tokens = match_result.secondary[:bound_command.argc]
+        for command in parse_result.commands:
+            # Step 2) Match and bind
+            match_result = next(self.tree.match(command), None)
+            if match_result is None:
+                raise CommandNotFoundError(command)
+            modifiers = match_result.value.modifiers
+            bound_command = match_result.value.command.bind(**modifiers)
+            # Remove options that the receiving function will not handle
+            option_tokens = match_result.secondary[:bound_command.argc]
 
-        # Step 3) Transform options
-        # Remove primary (command) arguments
-        option_words = command[len(match_result.primary):]
-        options = [token(word) for word, token in zip(option_words, option_tokens)]
+            # Step 3) Transform options
+            # Remove primary (command) arguments
+            option_words = command[len(match_result.primary):]
+            options = [token(word) for word, token in zip(option_words, option_tokens)]
 
-        return bound_command, options
+            yield bound_command, options
 
+    def prefix_matched_candidates(self, line):
+        """Calculates the prefix matched candidates.
 
-    def qhelp_items(self, line):
-        '''Called when ? is pressed. line is the text up to that point.
-        Returns help items to be shown, as a list of (command, helptext).'''
-        items = []
-        words = line.split()
-        if not words:
+        Examples for prefix candidate:
+        If line = 'show bgp' and there is an 'show bgp neighbor' then
+        'neighbor' is a prefix matched candidate.
+        """
+        if not line:
             # On empty line: show all commands in this context.
-            return sorted(self.context.get_help_subtree())
+            return sorted(str(x) for x in self.tree), ''
 
-        matches = self.context.find_command(words)
+        ends_with_white = line[-1].isspace()
+
+        # We need to strip the input here because the command line is not yet
+        # complete and may include trailing spaces that are not valid otherwise
+        parse_result = parse.parse(line.strip())
+        if not parse_result.success:
+            raise CommandParsingError(parse_result.error)
+
+        # Grab the last command, assume the user wants to know about that
+        # TODO(bluecmd): We could try to figure out what command the user was
+        # located at when typing '?' and give help about that option.
+        command = parse_result.commands[-1]
+
+        matches = list(self.tree.match(command, prefix=True))
         if not matches:
-            raise Exception(CLI_ERR_NOMATCH)
-        if line[-1].isspace():
-            # Last character is a space, so whatever comes before has
-            # to match a command unambiguously if we are to continue.
-            if len(matches) != 1:
-                raise Exception(CLI_ERR_AMBIGUOUS)
+            raise CommandNotFoundError(' '.join(command))
 
-            cmd_complete = False
-            # TODO(bluecmd): This cuts all the way through the abstraction
-            # Let's move get_help_subtree to cmdobj and use it here
-            cmdobj = matches[0]
-            for key in cmdobj.branch:
-                items.append(self.context.helpline(cmdobj.branch[key], words))
-            if hasattr(cmdobj, 'options'):
-                opt_words = words[len(cmdobj.command):]
-                if not opt_words and flags.F_NO_OPTS_OK in cmdobj.flags:
-                    # Didn't use any options, but that's ok.
-                    cmd_complete = True
-                elif len(opt_words) == len(cmdobj.options):
-                    # Used all options, definitely a complete command.
-                    cmd_complete = True
-                elif opt_words:
-                    # Only some options were used, check if we missed
-                    # any required ones.
-                    try:
-                        opt_tokens = tokenize_options(opt_words,
-                                                      cmdobj.options)
-                        check_required_options(opt_tokens, cmdobj.options)
-                        # Didn't bomb out, so all is well.
-                        cmd_complete = True
-                    except:
-                        pass
-                items.extend(options.help_options(cmdobj, words))
-            else:
-                # Command has no options.
-                cmd_complete = True
-            if cmd_complete and hasattr(cmdobj, 'run'):
-                items.insert(0, stringhelp.Str_help(('<cr>', cmdobj.__doc__)))
-        else:
-            # Possibly incomplete match, not ending in space.
-            for cmdobj in matches:
-                if len(words) <= len(cmdobj.command):
-                    # It's part of the command
-                    # TODO(bluecmd): This cuts all the way through the abstraction
-                    # Let's move get_help_subtree to cmdobj and use it here
-                    items.append(self.context.helpline(cmdobj, words[:-1]))
+        # Extract the part we care about
+        candidates = []
+        for match in matches:
+            # Assemble the fully qualified command from the command and options
+            # parts.
+            qualified = match.primary + match.secondary
+
+            # Remove the command we already have depending on where we are
+            if ends_with_white:
+                if len(qualified) == len(command):
+                    # This means that the command is qualified as it is
+                    candidate = ''
                 else:
-                    # Must be an option.
-                    items.extend(options.complete_options(cmdobj, words))
-        return sorted(items)
+                    candidate = qualified[len(command)]
+            else:
+                candidate = qualified[len(command)-1]
+            # De-duplicate
+            if str(candidate) in candidates:
+                continue
+            candidates.append(str(candidate))
+        return candidates, '' if ends_with_white else command[-1]
+
+    def qhelp(self, line):
+        """Called when ? is pressed. line is the text up to that point.
+        Returns help items to be shown, as a list of (command, helptext)."""
+        candidates, _ = self.prefix_matched_candidates(line)
+        return candidates
 
     def complete(self, line):
-        if not line:
-            return
-        words = line.split()
-        matches = self.context.find_command(words)
-        if not matches:
-            return
-
-        items = []
-        if line[-1].isspace():
-            # Showing next possible words or arguments.
-            if len(matches) != 1:
-                # The line doesn't add up to an unambiguous command.
-                return
-
-            if self.reader.last_event != 'complete':
-                # Only show next words/arguments on second tab.
-                return
-
-            cmdobj = matches[0]
-            # Strip matched command words.
-            words = words[len(cmdobj.command):]
-
-            if cmdobj.branch.keys():
-                # We have some matching words, need to list the rest.
-                items = cmdobj.branch.keys()
-            else:
-                # No more commands branch off of this one. Maybe it
-                # has some options?
-                items = options.help_options(cmdobj, words)
-        else:
-            # Completing a word.
-            if len(matches) == 1:
-                # Found exactly one completion.
-                if len(words) <= len(matches[0].command):
-                    # It's part of the command
-                    cmpl_word = matches[0].command[len(words) - 1]
-                else:
-                    # Must be an option.
-                    cmpl_word = None
-                    cmpls = options.complete_options(matches[0], words)
-                    if len(cmpls) == 1:
-                        # Just one option matched.
-                        cmpl_word = cmpls[0]
-                    elif len(cmpls) > 1:
-                        # More than one match. Ignore the first completion
-                        # attempt, and list all possible completions on every
-                        # tab afterwards.
-                        if self.last_event == 'complete':
-                            for cmdobj in matches:
-                                items.append(' '.join(cmpls))
-                if cmpl_word:
-                    cmpl = cmpl_word[len(words[-1]):]
-                    self.reader.insert(cmpl + ' ')
-            else:
-                # More than one match. Ignore the first completion attempt,
-                # and list all possible completions on every tab afterwards.
-                if self.reader.last_event == 'complete':
-                    for cmdobj in matches:
-                        items.append(' '.join(cmdobj.command))
-        if not items:
-            return
-
-
+        """Called when <TAB> is pressed. First time it will complete the word
+        if possible. If not, pressed a second time it will display the possible
+        alternatives."""
+        candidates, current = self.prefix_matched_candidates(line)
+        # Remove the already typed part of the candidates if there is only one
+        if len(candidates) == 1:
+            candidates[0] = candidates[0][len(current):]
+        return candidates

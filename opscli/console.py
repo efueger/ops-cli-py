@@ -1,10 +1,13 @@
 
 import os
+import sys
 
 from pyrepl.reader import Reader
 from pyrepl.unix_console import UnixConsole
 from pyrepl.historical_reader import HistoricalReader
 import pyrepl.commands
+
+from opscli import linehelper
 
 
 HISTORY_FILE = '~/.opscli_history'
@@ -69,7 +72,7 @@ class PyreplConsole(object):
         self.prompt_base = prompt
         self.helper = helper
 
-        print motd
+        self.output(motd)
 
         super(PyreplConsole, self).__init__()
 
@@ -77,16 +80,38 @@ class PyreplConsole(object):
         raise KeyboardInterrupt
 
     def qhelp(self, line):
-        print '\r\n'
-        print self.helper.qhelp(line)
-        print self.reader.ps1
-        print line
+        try:
+            items = self.helper.qhelp(line)
+        except linehelper.CommandNotFoundError:
+            self.print_inline('% Command not found')
+            return
+
+        self.output()
+        for item in items:
+            self.output(item if item else '<cr>')
+
+        sys.stdout.write(self.reader.ps1 + line)
+        sys.stdout.flush()
 
     def complete(self, line):
+        if not line:
+            return
         # Only show next words/arguments on second tab.
         show_more = self.reader.last_event == 'complete'
-        items = self.helper.complete(line, show_next)
-        self.print_inline(self.fmt_cols(items))
+        try:
+            items = self.helper.complete(line)
+        except linehelper.CommandNotFoundError:
+            self.print_inline('% Command not found')
+            return
+        if len(items) == 1:
+            self.reader.insert(items[0] + ' ')
+        else:
+            if show_more:
+                # Replace '' with '<cr>'
+                items = [x if x else '<cr>' for x in items]
+                self.print_inline(self.fmt_cols(items))
+            else:
+                self.reader.console.beep()
 
     def fmt_cols(self, data):
         """Arrange strings into columns depending on terminal width and the
@@ -114,17 +139,18 @@ class PyreplConsole(object):
                     break
                 except KeyboardInterrupt:
                     # ctrl-c throws away the current line and prompts again.
-                    print '^C'
+                    self.output('^C')
 
     def print_inline(self, text):
         """Write text on the next line, and reproduce the prompt and entered
         text without submitting it."""
-        print '\r\n'
-        print text.replace('\n', '\r\n')
-        print '\r\n'
-        print self.reader.ps1
-        print ''.join(self.reader.buffer)
+        self.output()
+        self.output(text)
+        sys.stdout.write(self.reader.ps1)
+        sys.stdout.write(''.join(self.reader.buffer))
+        sys.stdout.flush()
 
-    def output(self, value):
+    def output(self, *values):
         """Called when there is something to output returned by a command."""
-        print value
+        sys.stdout.write((' '.join(values) + '\n').replace('\n', '\r\n'))
+        sys.stdout.flush()

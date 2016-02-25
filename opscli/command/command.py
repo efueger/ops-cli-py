@@ -46,7 +46,6 @@ class Command(context.ContextBoundObject):
         pass
 
 
-
 class Feature(Command):
     """Feature commands are for features that can be activated/deactivated.
 
@@ -63,12 +62,13 @@ class Feature(Command):
     def isActivated(self):
         pass
 
+    @abc.abstractmethod
     def activate(self):
         pass
 
+    @abc.abstractmethod
     def deactivate(self):
         pass
-
 
 
 class Utility(Command):
@@ -77,6 +77,6 @@ class Utility(Command):
     def route(self, **kwargs):
         return self.command
 
+    @abc.abstractmethod
     def command(self):
         pass
-

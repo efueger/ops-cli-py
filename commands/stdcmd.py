@@ -14,7 +14,6 @@
 # under the License.
 
 from opscli.command import command
-from opscli.command import command
 from opscli import cli
 
 

@@ -141,7 +141,7 @@ class LiteralType(Token):
     def __str__(self):
         return self.string
 
-    def transform(self):
+    def transform(self, word):
         return self.string
 
     def match(self, word):

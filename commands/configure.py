@@ -13,24 +13,28 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from opscli.command import *
-from opscli.options import *
-from opscli.flags import *
-from opscli.output import *
+from opscli.command import command
+from opscli.command import context
+from opscli.command import token
+
+from tokens import common
+
+L = token.LiteralType
 
 
-class Configure(Command):
-    '''Configuration from CLI'''
-    command = 'configure'
-    flags = (F_NO_OPTS_OK,)
-    options = (
-        Opt_one(
-            ('terminal', 'Configure from terminal'),
-        ),
-    )
-
-    def run(self, opts, flags):
-        return self.context.enter('config')
+class ConfigureContext(context.Context):
+    prompt = '(config)'
 
 
-register_commands((Configure,))
+class Configure(command.Utility):
+    """Configuration from CLI"""
+
+    options = token.construct( [ L('terminal') ] )
+
+    def command(self, *unused_args):
+        return self.context.configure()
+
+
+def register(root, unused_everywhere):
+    root.configure = ConfigureContext
+    root.configure = Configure
