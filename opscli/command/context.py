@@ -63,6 +63,18 @@ class ContextTree(object):
         context = self._get_context()(*args, **kwargs)
         return BoundContextTree(self, context)
 
+    def __iter__(self):
+        """Unbound contexts allows enumeration of branches."""
+        return iter(self._branches)
+
+    def _is_border_branch(self, branch):
+        return self._branches[branch]._is_border_object()
+
+    def _is_border_object(self):
+        if self._context == None:
+            return False
+        return self._parent._get_context() != self._context
+
 
 class BoundContextTree(object):
 
@@ -80,6 +92,25 @@ class BoundContextTree(object):
 
     def __call__(self, *args, **kwargs):
         return self._tree(*args, **kwargs)
+
+
+    def __iter__(self):
+        """Bound context iterates over the bound objects within the context."""
+        if self._tree._bind:
+            # If we are a border object, we belong to the parent context
+            if not self._tree._is_border_object():
+                yield []
+        for branch in self._tree:
+            child = getattr(self, branch)
+            # Check that we're not trying to cross a context boundry
+            if self._tree._is_border_branch(branch):
+                # Allow border objects
+                if child._tree._bind:
+                    yield [branch]
+                continue
+            for combination in child:
+                yield [branch] + combination
+
 
     def New(self):
         return self._tree._bind(self._context)
