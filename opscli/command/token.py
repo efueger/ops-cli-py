@@ -1,6 +1,60 @@
 """
-TODO(bluecmd): Describe how the magic |, + and [] works.
+Tokens are optimistically and lazy matched word types that have two
+purposes: filter non-matching objects and transform matching ones.
 
+Optimistic and lazy means that the string "he" matches the literal
+token "hello". When transformed through the token "he" becomes "hello".
+
+Examples of tokens are: words, numbers, ip-addresses.
+
+Token transformation is a concept of taking the string representation
+and constructing a more suitable data structure from it.
+
+A simple example is a number token. It would be defined as:
+class NumberType(token.Token):
+  def match(self, word):
+    return is_numeric(word)
+  def transform(self, word):
+    return int(word)
+    
+# Transforming tokens
+
+Transforming is easiest done by treating a token instance as a functor:
+number = NumberType()
+number('10') => 10
+
+# Conditions: Combining tokens
+Combining two tokens creates a Condition.
+
+The operators suppoerted are: | (OR),  + (PLUS) and [] (BRACKETS).
+A OR B (A | B) is used to specifiy that the condition should
+pass for both A tokens and B tokens.
+
+Example: LiteralType("foo") | LiteralType("bar")
+This would match everything "foo" and "bar".
+
+A AND B (A + B) is used to specify that the A and B must
+follow eachother.
+
+Example: LiteralType("foo") + LiteralType("bar")
+This will only match if "foo" is followed by "bar".
+
+A BRACKET ( [ A ] ) means optional argument.
+
+Example: LiteralType("foo") + [ LiteralType("bar") ]
+This will match "foo" and also "foo", "bar".
+
+# Using combinations
+Combinations are used through iterating over them.
+The iteration process will generate every legal combination
+of the tokens in way that it's easy to match an array of words
+against.
+
+Example:
+
+combinations = list(LiteralType("foo") + [ LiteralType("bar") ])
+combinations[0] => [LiteralType("foo")]
+combinations[0] => [LiteralType("foo"), LiteralType("bar")]
 """
 import abc
 
