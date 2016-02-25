@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
+import logging
 import sys
 from getopt import getopt
 
+import opscli.ovsdb as ovsdb
 from opscli.cli import Opscli
-from opscli.debug import debug_enable
 
 DEFAULT_SERVER = 'unix:/var/run/openvswitch/db.sock'
-COMMAND_MODULE_PATHS = ("cli-commands", )
+MODULE_PATHS = ('commands', 'tokens')
 
 
 def usage():
@@ -17,6 +18,7 @@ def usage():
 
 def main(args):
     ovsdb_server = DEFAULT_SERVER
+    # TODO(bluecmd): Switch to argparse?
     opts, args = getopt(args, 'hs:d:')
     for opt, arg in opts:
         if opt == '-h':
@@ -24,14 +26,16 @@ def main(args):
         elif opt == '-s':
             ovsdb_server = arg
         elif opt == '-d':
-            for key in arg.split(','):
-                debug_enable(key)
+            # TODO(bluecmd): Set logging level
+            pass
+
+    ovsdb_obj = ovsdb.Ovsdb(server=ovsdb_server)
     try:
-        cli = Opscli(ovsdb_server, command_module_paths=COMMAND_MODULE_PATHS)
-        cli.start_shell()
-    except Exception as e:
-        # TODO log exception to debug log
-        raise
+        ovsdb_obj.connect()
+    except:
+        logging.exception('Unable to connect to %s', ovsdb)
+    cli = Opscli(ovsdb_obj, module_paths=MODULE_PATHS)
+    cli.start()
 
 if __name__ == '__main__':
     main(sys.argv[1:])

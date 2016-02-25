@@ -15,51 +15,43 @@
 
 import sys
 import os
+import logging
 
 from opscli import console
-from opscli import context
-from opscli.flags import *
-from opscli.output import *
-from opscli.tokens import *
-from opscli.options import *
-import opscli.ovsdb as ovsdb
-from opscli.debug import logline, debug_is_on
+from opscli.command import context
 
 
-def dbg(msg):
-    logline('cli', msg)
+class OpsContext(context.Context):
+    def new(self, ovsdb):
+        self.ovsdb = ovsdb
 
 
 class Opscli(object):
     '''
     This class extends pyrepl's Reader to provide command modules.
     '''
-    def __init__(self, ovsdb_server, command_module_paths=None):
+    def __init__(self, ovsdb, module_paths=None, motd='OpenSwitch shell'):
         # Initialize the OVSDB helper.
-        ovsdb.Ovsdb(server=ovsdb_server)
-        self.motd = CLI_MSG_MOTD
+        self.motd = 'OpenSwitch shell'
         prompt_base = 'Openswitch'
+
+        # TODO shell hangs before prompt if this is down
         try:
-            # TODO shell hangs before prompt if this is down
             results = ovsdb.get_map('System', column='mgmt_intf_status')
             if 'hostname' in results:
                 prompt_base = results['hostname']
-        except Exception as e:
-            cli_err("Unable to connect to %s: %s." % (ovsdb_server, str(e)))
+        except:
+            logging.exception('Failed to get hostname from OVSDB')
 
         # Initialize command tree.
-        for path in command_module_paths:
+        for path in module_paths:
             if not os.path.isdir(path):
-                cli_warn("Ignoring invalid module path '%s'." % path)
+                logging.warn('Ignoring invalid module path "%s".', path)
                 continue
             self.load_commands(path)
 
-        self.context = context.Context('root')
-        self.console = console.PyreplConsole(prompt_base, self.context)
-
-        if debug_is_on('cli'):
-            self.context.cmdtree.dump_tree()
-
+        self.root = context.ContextTree(OvsdbContext)
+        self.console = console.PyreplConsole(prompt_base, self.root)
 
     def load_commands(self, path):
         sys.path.insert(0, path)
@@ -69,7 +61,7 @@ class Opscli(object):
             # Strip '.py'.
             __import__(filename[:-3])
 
-    def start_shell(self):
+    def start(self):
         cli_out(self.motd)
         for line in self.console.loop():
             if not self.process_line(line):

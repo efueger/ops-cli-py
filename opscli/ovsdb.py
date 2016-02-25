@@ -13,27 +13,18 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import socket
 import json
+import logging
 import select
-
-import opscli.debug
+import socket
 
 
 DEFAULT_DB = 'OpenSwitch'
 OVSDB_TIMEOUT_MS = 1000
 
-_ovsdb = None
-
-
-def dbg(msg):
-    opscli.debug.logline('ovsdb', msg)
-
 
 class Ovsdb:
     def __init__(self, server):
-        global _ovsdb
-        _ovsdb = self
         self.server = server
         self.seq = 0
 
@@ -46,27 +37,27 @@ class Ovsdb:
                 raise Exception("Invalid server")
             ipv4addr, port = parts[1:]
             address = (ipv4addr, int(port))
-            dbg("Connecting to %s port %d" % address)
+            logging.info("Connecting to %s port %d" % address)
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         elif parts[0] == 'unix':
             if len(parts) != 2:
                 raise Exception("Invalid server")
             address = parts[1]
-            dbg("Connecting to %s" % address)
+            logging.info("Connecting to %s" % address)
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         else:
             # TODO: ssl connection method
             raise Exception("unsupported connection method")
 
         self.socket.connect(address)
-        dbg("Connected.")
+        logging.info("Connected.")
 
     def close(self):
         self.socket.close()
-        dbg("Closed connection.")
+        logging.info("Closed connection.")
 
     def send(self, msg):
-        dbg("Sending %s" % msg)
+        logging.info("Sending %s" % msg)
         self.socket.send(json.dumps(msg))
 
     def receive(self):
@@ -82,8 +73,8 @@ class Ovsdb:
             if fdlist[0][1] & select.POLLERR:
                 raise Exception("poll error")
             chunk = self.socket.recv(4096)
-            dbg("Received %d bytes." % len(chunk))
-            dbg(chunk)
+            logging.info("Received %d bytes." % len(chunk))
+            logging.info(chunk)
             if len(chunk) == 0:
                 raise Exception
             data += chunk
@@ -170,71 +161,71 @@ class Ovsdb:
         return response['result'][0]['rows']
 
 
-def get(table, columns=None, conditions=[], database=DEFAULT_DB):
-    _ovsdb.connect()
-    response = _ovsdb.query(table=table, columns=columns,
-                            conditions=conditions, database=database)
-    _ovsdb.close()
+    def get(self, table, columns=None, conditions=[], database=DEFAULT_DB):
+        self.connect()
+        response = self.query(table=table, columns=columns,
+                                conditions=conditions, database=database)
+        self.close()
 
-    return response
-
-
-def get_map(table, column, conditions=[]):
-    data = get(table, [column], conditions=conditions)[0][column][1]
-    results = {}
-    for key, value in data:
-        results[key] = value
-
-    return results
+        return response
 
 
-def insert(table, row, database=DEFAULT_DB):
-    _ovsdb.connect()
-    tr = _ovsdb._insert(table, row)
-    response = _ovsdb.transact(tr, database=database)
-    _ovsdb.close()
+    def get_map(self, table, column, conditions=[]):
+        data = self.get(table, [column], conditions=conditions)[0][column][1]
+        results = {}
+        for key, value in data:
+            results[key] = value
 
-    return response
-
-
-def update(table, row, conditions=[], database=DEFAULT_DB):
-    _ovsdb.connect()
-    tr = _ovsdb._update(table, row, conditions)
-    response = _ovsdb.transact(tr, database=database)
-    _ovsdb.close()
-
-    return response
+        return results
 
 
-def mutate_map(table, mutations, conditions=[]):
-    _ovsdb.connect()
-    tr = _ovsdb._mutate(table, mutations, conditions)
-    response = _ovsdb.transact(tr, database=DEFAULT_DB)
-    _ovsdb.close()
+    def insert(self, table, row, database=DEFAULT_DB):
+        self.connect()
+        tr = self._insert(table, row)
+        response = self.transact(tr, database=database)
+        self.close()
 
-    return response
-
-
-def map_set_key(table, column, key, value, conditions=[]):
-    _ovsdb.connect()
-    mutations = [
-        [column, 'delete', ['set', [key]]],
-        [column, 'insert', ['map', [[key, value]]]],
-    ]
-    tr = _ovsdb._mutate(table, mutations, conditions)
-    response = _ovsdb.transact(tr, database=DEFAULT_DB)
-    _ovsdb.close()
-
-    return response
+        return response
 
 
-def map_delete_key(table, column, key, conditions=[]):
-    _ovsdb.connect()
-    mutations = [
-        [column, 'delete', ['set', [key]]],
-    ]
-    tr = _ovsdb._mutate(table, mutations, conditions)
-    response = _ovsdb.transact(tr, database=DEFAULT_DB)
-    _ovsdb.close()
+    def update(self, table, row, conditions=[], database=DEFAULT_DB):
+        self.connect()
+        tr = self._update(table, row, conditions)
+        response = self.transact(tr, database=database)
+        self.close()
 
-    return response
+        return response
+
+
+    def mutate_map(self, table, mutations, conditions=[]):
+        self.connect()
+        tr = self._mutate(table, mutations, conditions)
+        response = self.transact(tr, database=DEFAULT_DB)
+        self.close()
+
+        return response
+
+
+    def map_set_key(self, table, column, key, value, conditions=[]):
+        self.connect()
+        mutations = [
+            [column, 'delete', ['set', [key]]],
+            [column, 'insert', ['map', [[key, value]]]],
+        ]
+        tr = self._mutate(table, mutations, conditions)
+        response = self.transact(tr, database=DEFAULT_DB)
+        self.close()
+
+        return response
+
+
+    def map_delete_key(self, table, column, key, conditions=[]):
+        self.connect()
+        mutations = [
+            [column, 'delete', ['set', [key]]],
+        ]
+        tr = self._mutate(table, mutations, conditions)
+        response = self.transact(tr, database=DEFAULT_DB)
+        self.close()
+
+        return response
