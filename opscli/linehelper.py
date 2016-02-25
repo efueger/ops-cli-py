@@ -5,12 +5,6 @@ from opscli.command import parse
 from opscli.command import token
 
 
-# When modifiers such as 'no' have been parsed they are attached to the command
-# using this structure
-CommandStruct = collections.namedtuple(
-        'CommandStruct', ('modifiers', 'command'))
-
-
 class Error(Exception):
     """Base error class for this module."""
     pass
@@ -48,10 +42,10 @@ class ContextLineHelper(LineHelper):
         for words, obj in commands:
             # TODO(bluecmd): Register legal modifiers for this command
             modifiers = {'is_negated': False}
-            struct = CommandStruct(modifiers, obj)
+            bound = obj.bind(**modifiers)
             command_tokens = [token.LiteralType(x) for x in words]
             for option in obj.options:
-                tree.add(match.MatchGroup(command_tokens, option, struct))
+                tree.add(match.MatchGroup(command_tokens, option, bound))
         self.tree = tree
         self.context = context
 
@@ -71,8 +65,7 @@ class ContextLineHelper(LineHelper):
             match_result = next(self.tree.match(command), None)
             if match_result is None:
                 raise CommandNotFoundError(command)
-            modifiers = match_result.value.modifiers
-            bound_command = match_result.value.command.bind(**modifiers)
+            bound_command = match_result.value
             # Remove options that the receiving function will not handle
             option_tokens = match_result.secondary[:bound_command.argc]
 
