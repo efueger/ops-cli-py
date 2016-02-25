@@ -90,13 +90,9 @@ def execute(ctxt, command):
         return ctxt
 
     # Step 4) Handle result
-    if ret is None:
-        pass
-    elif isinstance(ret, context.BoundContextTree):
-        ctxt = ret
-    else:
+    if ret.value is not None:
         print ret
-    return ctxt
+    return ret.context
 
 
 ctxt = root()

@@ -1,5 +1,9 @@
 import abc
+import collections
 import context
+
+
+CommandResult = collections.namedtuple('CommandResult', ('context', 'value'))
 
 
 class Command(context.ContextBoundObject):
@@ -12,11 +16,21 @@ class Command(context.ContextBoundObject):
     class Bound(object):
 
         def __init__(self, command, **kwargs):
+            self.command = command
             self.func = command.route(**kwargs)
             self.argc = self.func.func_code.co_argcount
 
         def __call__(self, *options):
-            return self.func(*options)
+            # Command functions return either text to print or switches
+            # context. Find out what it wanted to do.
+            ret = self.func(*options)
+            ctxt = self.command.context
+            value = None
+            if isinstance(ret, context.BoundContextTree):
+                ctxt = ret
+            else:
+                value = ret
+            return CommandResult(ctxt, value)
 
         def __str__(self):
             return '%s.%s' % (self.func.im_class.__name__, self.func.__name__)
