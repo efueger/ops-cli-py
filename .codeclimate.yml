@@ -7,10 +7,10 @@ engines:
       - python
   fixme:
     enabled: true
-  radon:
+  radon: 
     enabled: true
-      config:
-        python_version: 2
+    config: 
+      python_version: 2
 ratings:
   paths:
   - "**.py"
