@@ -1,4 +1,4 @@
-import context
+from opscli.command import context
 
 def testSimpleContext():
     root = context.ContextTree(context.Context)

@@ -1,9 +1,9 @@
 import collections
-import command
-import context
-import match
-import parse
-import token
+from opscli.command import command
+from opscli.command import context
+from opscli.command import match
+from opscli.command import parse
+from opscli.command import token
 
 
 class AnyToken(token.Token):

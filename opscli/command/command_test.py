@@ -1,5 +1,5 @@
-import context
-import command
+from opscli.command import context
+from opscli.command import command
 
 
 class FakeCommand(command.Utility):

@@ -1,5 +1,5 @@
-import match
-import token
+from opscli.command import match
+from opscli.command import token
 
 L = token.LiteralType
 

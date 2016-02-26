@@ -1,4 +1,4 @@
-import token
+from opscli.command import token
 
 
 class Any(token.Token):
