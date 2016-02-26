@@ -12,15 +12,15 @@ Features
 * Fully readline-compatible command line
 * Tab completion on all commands and options
 * Modular and dynamically pluggable commands
-* Inline help on commands and options
-* Per-subsystem debug facility
 * Tokenizing parser with automatic type checking
 * Expressive command module syntax for declaring options
 * Nested contexts with custom command trees
-* Running config infrastructure
 
 TODO
 ====
+* Inline help on commands and options
+* Per-subsystem debug facility
+* Running config infrastructure
 * Better exception/error message integration
 * Options ordering
 * Better OVSDB link
